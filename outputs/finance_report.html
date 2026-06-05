@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Real-World Finance Data Science Report</title>
+  <style>
+    body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #172026; background: #f5f7fa; }
+    header { background: #0b1324; color: white; padding: 34px 42px; }
+    main { max-width: 1200px; margin: 0 auto; padding: 28px 20px 48px; }
+    h1, h2 { margin: 0 0 12px; }
+    p, li { line-height: 1.55; }
+    section { margin-top: 32px; }
+    .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin: 22px 0; }
+    .kpi { background: white; border: 1px solid #d7dee8; border-radius: 8px; padding: 18px; }
+    .kpi span { display: block; color: #52616f; font-size: 13px; margin-bottom: 8px; }
+    .kpi strong { font-size: 22px; }
+    .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 18px; }
+    figure { margin: 0; background: white; border: 1px solid #d7dee8; border-radius: 8px; padding: 12px; }
+    img { width: 100%; height: auto; display: block; }
+    .data-table { border-collapse: collapse; width: 100%; background: white; margin-top: 12px; }
+    .data-table th, .data-table td { border: 1px solid #d7dee8; padding: 9px 10px; text-align: left; font-size: 14px; }
+    .data-table th { background: #edf2f7; }
+    code { background: #e8edf4; padding: 2px 5px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Real-World Finance Data Science Project</h1>
+    <p>End-to-end market analysis, portfolio optimization, anomaly detection, prediction, and backtesting using historical stock data.</p>
+  </header>
+  <main>
+    <div class="kpis">
+      <div class="kpi"><span>Analysis Window</span><strong>2021-01-01 to 2026-06-05</strong></div>
+      <div class="kpi"><span>Best Asset Sharpe</span><strong>NVDA: 1.20</strong></div>
+      <div class="kpi"><span>Max-Sharpe Portfolio</span><strong>1.53</strong></div>
+      <div class="kpi"><span>Champion Model</span><strong>Random Forest</strong></div>
+      <div class="kpi"><span>Model ROC AUC</span><strong>0.549</strong></div>
+      <div class="kpi"><span>Strategy Sharpe</span><strong>0.26</strong></div>
+    </div>
+
+    <section>
+      <h2>Conclusions</h2>
+      <ul>
+        <li><strong>NVDA</strong> ranked highest by standalone Sharpe ratio during this window.</li>
+        <li>The optimized max-Sharpe portfolio improved diversification by combining return, volatility, and covariance information.</li>
+        <li>Regime clustering separated calm, bullish, choppy, and drawdown-like environments without hand labels.</li>
+        <li>The predictive model is evaluated with time-aware splits and should be treated as a research signal, not investment advice.</li>
+        <li>The backtest compares a simple probability-threshold strategy against SPY buy-and-hold on held-out dates.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Data Quality</h2>
+      <table class="dataframe data-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>ticker</th>
+      <th>rows</th>
+      <th>start</th>
+      <th>end</th>
+      <th>missing_adj_close</th>
+      <th>duplicate_dates</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>AAPL</td>
+      <td>1361</td>
+      <td>2021-01-04</td>
+      <td>2026-06-04</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <td>MSFT</td>
+      <td>1361</td>
+      <td>2021-01-04</td>
+      <td>2026-06-04</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <td>NVDA</td>
+      <td>1361</td>
+      <td>2021-01-04</td>
+      <td>2026-06-04</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <td>AMZN</td>
+      <td>1361</td>
+      <td>2021-01-04</td>
+      <td>2026-06-04</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <td>JPM</td>
+      <td>1361</td>
+      <td>2021-01-04</td>
+      <td>2026-06-04</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <td>UNH</td>
+      <td>1361</td>
+      <td>2021-01-04</td>
+      <td>2026-06-04</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <td>XOM</td>
+      <td>1361</td>
+      <td>2021-01-04</td>
+      <td>2026-06-04</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <td>SPY</td>
+      <td>1361</td>
+      <td>2021-01-04</td>
+      <td>2026-06-04</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+  </tbody>
+</table>
+    </section>
+
+    <section>
+      <h2>Visual Evidence</h2>
+      <div class="charts">
+        <figure><img src="normalized_prices.png" alt="Normalized prices"></figure>
+        <figure><img src="risk_return_scatter.png" alt="Risk return scatter"></figure>
+        <figure><img src="correlation_heatmap.png" alt="Correlation heatmap"></figure>
+        <figure><img src="efficient_frontier.png" alt="Efficient frontier"></figure>
+        <figure><img src="portfolio_allocations.png" alt="Portfolio allocations"></figure>
+        <figure><img src="spy_drawdown.png" alt="SPY drawdown"></figure>
+        <figure><img src="rolling_volatility.png" alt="Rolling volatility"></figure>
+        <figure><img src="market_regime_timeline.png" alt="Market regime timeline"></figure>
+        <figure><img src="market_anomalies.png" alt="Market anomalies"></figure>
+        <figure><img src="model_roc_curve.png" alt="Model ROC"></figure>
+        <figure><img src="model_confusion_matrix.png" alt="Model confusion matrix"></figure>
+        <figure><img src="model_feature_importance.png" alt="Model feature importance"></figure>
+        <figure><img src="strategy_backtest.png" alt="Strategy backtest"></figure>
+      </div>
+    </section>
+
+    <section>
+      <h2>Asset Risk Metrics</h2>
+      <table class="dataframe data-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>ticker</th>
+      <th>annual_return</th>
+      <th>annual_volatility</th>
+      <th>sharpe</th>
+      <th>sortino</th>
+      <th>max_drawdown</th>
+      <th>var_95_daily</th>
+      <th>cvar_95_daily</th>
+      <th>beta_to_spy</th>
+      <th>alpha_to_spy</th>
+      <th>positive_day_rate</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>NVDA</td>
+      <td>0.6524</td>
+      <td>0.5122</td>
+      <td>1.1957</td>
+      <td>1.9273</td>
+      <td>-0.6634</td>
+      <td>-0.0469</td>
+      <td>-0.0662</td>
+      <td>2.1203</td>
+      <td>0.3565</td>
+      <td>0.5360</td>
+    </tr>
+    <tr>
+      <td>XOM</td>
+      <td>0.3178</td>
+      <td>0.2728</td>
+      <td>1.0186</td>
+      <td>1.5322</td>
+      <td>-0.2051</td>
+      <td>-0.0277</td>
+      <td>-0.0379</td>
+      <td>0.4772</td>
+      <td>0.2202</td>
+      <td>0.5375</td>
+    </tr>
+    <tr>
+      <td>JPM</td>
+      <td>0.2229</td>
+      <td>0.2428</td>
+      <td>0.7531</td>
+      <td>1.0683</td>
+      <td>-0.3877</td>
+      <td>-0.0234</td>
+      <td>-0.0351</td>
+      <td>0.8911</td>
+      <td>0.0753</td>
+      <td>0.5360</td>
+    </tr>
+    <tr>
+      <td>SPY</td>
+      <td>0.1607</td>
+      <td>0.1684</td>
+      <td>0.7170</td>
+      <td>0.9862</td>
+      <td>-0.2450</td>
+      <td>-0.0164</td>
+      <td>-0.0243</td>
+      <td>1.0000</td>
+      <td>0.0000</td>
+      <td>0.5478</td>
+    </tr>
+    <tr>
+      <td>AAPL</td>
+      <td>0.2058</td>
+      <td>0.2758</td>
+      <td>0.6013</td>
+      <td>0.8842</td>
+      <td>-0.3336</td>
+      <td>-0.0272</td>
+      <td>-0.0386</td>
+      <td>1.2221</td>
+      <td>0.0183</td>
+      <td>0.5301</td>
+    </tr>
+    <tr>
+      <td>MSFT</td>
+      <td>0.1685</td>
+      <td>0.2637</td>
+      <td>0.4874</td>
+      <td>0.7027</td>
+      <td>-0.3715</td>
+      <td>-0.0267</td>
+      <td>-0.0371</td>
+      <td>1.1300</td>
+      <td>-0.0079</td>
+      <td>0.5184</td>
+    </tr>
+    <tr>
+      <td>AMZN</td>
+      <td>0.1466</td>
+      <td>0.3476</td>
+      <td>0.3067</td>
+      <td>0.4468</td>
+      <td>-0.5615</td>
+      <td>-0.0323</td>
+      <td>-0.0490</td>
+      <td>1.4618</td>
+      <td>-0.0698</td>
+      <td>0.5176</td>
+    </tr>
+    <tr>
+      <td>UNH</td>
+      <td>0.0900</td>
+      <td>0.3110</td>
+      <td>0.1606</td>
+      <td>0.1776</td>
+      <td>-0.6139</td>
+      <td>-0.0248</td>
+      <td>-0.0464</td>
+      <td>0.4329</td>
+      <td>-0.0023</td>
+      <td>0.5257</td>
+    </tr>
+  </tbody>
+</table>
+    </section>
+
+    <section>
+      <h2>Optimized Portfolios</h2>
+      <table class="dataframe data-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>portfolio</th>
+      <th>annual_return</th>
+      <th>annual_volatility</th>
+      <th>sharpe</th>
+      <th>AAPL</th>
+      <th>MSFT</th>
+      <th>NVDA</th>
+      <th>AMZN</th>
+      <th>JPM</th>
+      <th>UNH</th>
+      <th>XOM</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Max Sharpe</td>
+      <td>0.4295</td>
+      <td>0.2553</td>
+      <td>1.5255</td>
+      <td>0.0000</td>
+      <td>0.0000</td>
+      <td>0.3583</td>
+      <td>0.0000</td>
+      <td>0.0862</td>
+      <td>0.0000</td>
+      <td>0.5555</td>
+    </tr>
+    <tr>
+      <td>Min Volatility</td>
+      <td>0.2066</td>
+      <td>0.1651</td>
+      <td>1.0093</td>
+      <td>0.1012</td>
+      <td>0.2299</td>
+      <td>0.0000</td>
+      <td>0.0000</td>
+      <td>0.2140</td>
+      <td>0.1986</td>
+      <td>0.2564</td>
+    </tr>
+    <tr>
+      <td>Equal Weight</td>
+      <td>0.2577</td>
+      <td>0.2022</td>
+      <td>1.0767</td>
+      <td>0.1429</td>
+      <td>0.1429</td>
+      <td>0.1429</td>
+      <td>0.1429</td>
+      <td>0.1429</td>
+      <td>0.1429</td>
+      <td>0.1429</td>
+    </tr>
+  </tbody>
+</table>
+    </section>
+
+    <section>
+      <h2>Market Regimes</h2>
+      <table class="dataframe data-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>regime_id</th>
+      <th>spy_21d_return</th>
+      <th>spy_21d_volatility</th>
+      <th>spy_drawdown</th>
+      <th>market_breadth_21d</th>
+      <th>label</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>-0.0105</td>
+      <td>0.1404</td>
+      <td>-0.0342</td>
+      <td>0.4075</td>
+      <td>Quiet Range</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>0.0389</td>
+      <td>0.1120</td>
+      <td>-0.0100</td>
+      <td>0.7585</td>
+      <td>Bullish Expansion</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>-0.0581</td>
+      <td>0.2722</td>
+      <td>-0.1580</td>
+      <td>0.2130</td>
+      <td>Risk-Off Drawdown</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>0.0423</td>
+      <td>0.2025</td>
+      <td>-0.1280</td>
+      <td>0.7758</td>
+      <td>Bullish Expansion</td>
+    </tr>
+  </tbody>
+</table>
+    </section>
+
+    <section>
+      <h2>Predictive Model Leaderboard</h2>
+      <table class="dataframe data-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>model</th>
+      <th>cv_roc_auc</th>
+      <th>test_roc_auc</th>
+      <th>accuracy</th>
+      <th>precision</th>
+      <th>recall</th>
+      <th>f1</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Random Forest</td>
+      <td>0.5340</td>
+      <td>0.5489</td>
+      <td>0.5269</td>
+      <td>0.6566</td>
+      <td>0.519</td>
+      <td>0.5798</td>
+    </tr>
+    <tr>
+      <td>Logistic Regression</td>
+      <td>0.5463</td>
+      <td>0.5088</td>
+      <td>0.5778</td>
+      <td>0.6255</td>
+      <td>0.819</td>
+      <td>0.7093</td>
+    </tr>
+  </tbody>
+</table>
+    </section>
+
+    <section>
+      <h2>Backtest Summary</h2>
+      <table class="dataframe data-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>strategy</th>
+      <th>annual_return</th>
+      <th>annual_volatility</th>
+      <th>sharpe</th>
+      <th>max_drawdown</th>
+      <th>var_95_daily</th>
+      <th>cvar_95_daily</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Signal Strategy</td>
+      <td>0.0644</td>
+      <td>0.0945</td>
+      <td>0.2582</td>
+      <td>-0.1035</td>
+      <td>-0.0110</td>
+      <td>-0.0155</td>
+    </tr>
+    <tr>
+      <td>SPY Buy and Hold</td>
+      <td>0.1984</td>
+      <td>0.1813</td>
+      <td>0.8736</td>
+      <td>-0.1876</td>
+      <td>-0.0161</td>
+      <td>-0.0252</td>
+    </tr>
+  </tbody>
+</table>
+    </section>
+  </main>
+</body>
+</html>

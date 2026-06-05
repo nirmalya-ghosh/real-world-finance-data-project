@@ -1,0 +1,5 @@
+regime_id,spy_21d_return,spy_21d_volatility,spy_drawdown,market_breadth_21d,label
+1,-0.0105,0.1404,-0.0342,0.4075,Quiet Range
+2,0.0389,0.112,-0.01,0.7585,Bullish Expansion
+3,-0.0581,0.2722,-0.158,0.213,Risk-Off Drawdown
+4,0.0423,0.2025,-0.128,0.7758,Bullish Expansion

@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.DS_Store
+Thumbs.db
+data/*_prices.csv
+data/market_prices_raw.csv
+outputs/efficient_frontier_simulation.csv
+models/*.joblib

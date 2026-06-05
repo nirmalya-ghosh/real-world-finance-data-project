@@ -1,0 +1,11 @@
+{
+  "analysis_start": "2021-01-01",
+  "analysis_end": "2026-06-05",
+  "best_asset_by_sharpe": "NVDA",
+  "best_asset_sharpe": 1.1957463021388315,
+  "max_sharpe_portfolio_sharpe": 1.5255339572921873,
+  "strategy_sharpe": 0.258206277456446,
+  "buy_hold_sharpe": 0.8736141667445638,
+  "champion_model": "Random Forest",
+  "champion_auc": 0.5488863287250384
+}
