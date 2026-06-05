@@ -28,6 +28,7 @@ from sklearn.metrics import (
 )
 from sklearn.model_selection import TimeSeriesSplit, cross_val_score
 from sklearn.pipeline import Pipeline
+from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 
@@ -400,6 +401,131 @@ def backtest_strategy(returns: pd.DataFrame, predictions: pd.DataFrame) -> pd.Da
     return backtest
 
 
+def portfolio_risk_contribution(asset_returns: pd.DataFrame, optimized: pd.DataFrame) -> pd.DataFrame:
+    covariance = asset_returns.cov() * TRADING_DAYS
+    rows = []
+    for _, portfolio in optimized.iterrows():
+        weights = portfolio[ASSETS].to_numpy(dtype=float)
+        portfolio_vol = np.sqrt(weights.T @ covariance.values @ weights)
+        marginal_risk = covariance.values @ weights / portfolio_vol
+        component_risk = weights * marginal_risk
+        percent_risk = component_risk / component_risk.sum()
+        for asset, weight, contribution in zip(ASSETS, weights, percent_risk, strict=False):
+            rows.append(
+                {
+                    "portfolio": portfolio["portfolio"],
+                    "asset": asset,
+                    "weight": weight,
+                    "risk_contribution": contribution,
+                }
+            )
+    contribution = pd.DataFrame(rows)
+    contribution.to_csv(OUTPUT_DIR / "portfolio_risk_contribution.csv", index=False)
+
+    max_sharpe = contribution[contribution["portfolio"] == "Max Sharpe"]
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.bar(max_sharpe["asset"], max_sharpe["risk_contribution"], color="#0f766e", edgecolor="#222")
+    ax.set_title("Max-Sharpe Portfolio Risk Contribution")
+    ax.set_ylabel("Share of Portfolio Volatility")
+    ax.grid(axis="y", alpha=0.25)
+    save_fig(fig, "risk_contribution.png")
+    return contribution
+
+
+def stress_test_portfolios(optimized: pd.DataFrame) -> pd.DataFrame:
+    scenarios = {
+        "Broad Market Shock": {"AAPL": -0.12, "MSFT": -0.11, "NVDA": -0.18, "AMZN": -0.14, "JPM": -0.10, "UNH": -0.08, "XOM": -0.07},
+        "Rates Spike": {"AAPL": -0.08, "MSFT": -0.09, "NVDA": -0.13, "AMZN": -0.10, "JPM": 0.04, "UNH": -0.04, "XOM": 0.03},
+        "Energy Rally": {"AAPL": -0.03, "MSFT": -0.02, "NVDA": -0.04, "AMZN": -0.03, "JPM": 0.01, "UNH": 0.00, "XOM": 0.16},
+        "AI Momentum Unwind": {"AAPL": -0.07, "MSFT": -0.08, "NVDA": -0.24, "AMZN": -0.09, "JPM": -0.02, "UNH": 0.01, "XOM": 0.02},
+        "Defensive Rotation": {"AAPL": -0.04, "MSFT": -0.03, "NVDA": -0.08, "AMZN": -0.05, "JPM": 0.02, "UNH": 0.08, "XOM": 0.04},
+    }
+    rows = []
+    for _, portfolio in optimized.iterrows():
+        weights = portfolio[ASSETS].astype(float)
+        for scenario, shocks in scenarios.items():
+            scenario_return = sum(weights[asset] * shocks[asset] for asset in ASSETS)
+            rows.append(
+                {
+                    "portfolio": portfolio["portfolio"],
+                    "scenario": scenario,
+                    "portfolio_return": scenario_return,
+                    "estimated_loss_on_100k": -scenario_return * 100000,
+                }
+            )
+    stress = pd.DataFrame(rows)
+    stress.to_csv(OUTPUT_DIR / "portfolio_stress_tests.csv", index=False)
+
+    pivot = stress.pivot(index="scenario", columns="portfolio", values="portfolio_return")
+    fig, ax = plt.subplots(figsize=(9, 5))
+    pivot.plot(kind="bar", ax=ax, edgecolor="#222")
+    ax.set_title("Scenario Stress Test Returns")
+    ax.set_ylabel("Scenario Return")
+    ax.tick_params(axis="x", rotation=25)
+    ax.grid(axis="y", alpha=0.25)
+    save_fig(fig, "stress_tests.png")
+    return stress
+
+
+def rolling_beta_diagnostics(returns: pd.DataFrame, window: int = 63) -> pd.DataFrame:
+    rows = []
+    benchmark = returns[BENCHMARK]
+    for asset in ASSETS:
+        covariance = returns[asset].rolling(window).cov(benchmark)
+        variance = benchmark.rolling(window).var()
+        beta = covariance / variance
+        for date, value in beta.dropna().items():
+            rows.append({"date": date, "asset": asset, "rolling_beta": value})
+    beta_frame = pd.DataFrame(rows)
+    beta_frame.to_csv(OUTPUT_DIR / "rolling_beta.csv", index=False)
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+    for asset in ASSETS:
+        subset = beta_frame[beta_frame["asset"] == asset]
+        ax.plot(subset["date"], subset["rolling_beta"], linewidth=1.6, label=asset)
+    ax.axhline(1, color="#777", linestyle="--", linewidth=1)
+    ax.set_title("Rolling 63-Day Beta to SPY")
+    ax.set_ylabel("Beta")
+    ax.grid(alpha=0.25)
+    ax.legend(frameon=False, ncol=4, fontsize=8)
+    save_fig(fig, "rolling_beta.png")
+    return beta_frame
+
+
+def pca_factor_analysis(asset_returns: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    scaler = StandardScaler()
+    scaled = scaler.fit_transform(asset_returns)
+    pca = PCA(n_components=min(4, len(ASSETS)), random_state=RANDOM_STATE)
+    pca.fit(scaled)
+    loadings = pd.DataFrame(pca.components_.T, index=ASSETS, columns=[f"PC{i + 1}" for i in range(pca.n_components_)])
+    variance = pd.DataFrame(
+        {
+            "component": loadings.columns,
+            "explained_variance_ratio": pca.explained_variance_ratio_,
+            "cumulative_variance": np.cumsum(pca.explained_variance_ratio_),
+        }
+    )
+    loadings.to_csv(OUTPUT_DIR / "pca_factor_loadings.csv")
+    variance.to_csv(OUTPUT_DIR / "pca_factor_variance.csv", index=False)
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.bar(variance["component"], variance["explained_variance_ratio"], color="#2563eb", edgecolor="#222")
+    ax.plot(variance["component"], variance["cumulative_variance"], color="#dc2626", marker="o", linewidth=2)
+    ax.set_title("PCA Market Factor Variance")
+    ax.set_ylabel("Explained Variance")
+    ax.grid(axis="y", alpha=0.25)
+    save_fig(fig, "pca_factor_variance.png")
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+    pc1 = loadings["PC1"].sort_values()
+    ax.barh(pc1.index, pc1.values, color="#7c3aed", edgecolor="#222")
+    ax.set_title("First Principal Component Loadings")
+    ax.set_xlabel("Loading")
+    ax.grid(axis="x", alpha=0.25)
+    save_fig(fig, "pca_pc1_loadings.png")
+    return loadings, variance
+
+
 def performance_summary(return_series: pd.Series) -> dict[str, float]:
     return {
         "annual_return": float(return_series.mean() * TRADING_DAYS),
@@ -524,7 +650,17 @@ def money(value: float) -> str:
     return f"${value:,.2f}"
 
 
-def build_report(quality: pd.DataFrame, metrics: pd.DataFrame, optimized: pd.DataFrame, regime_profile: pd.DataFrame, leaderboard: pd.DataFrame, backtest: pd.DataFrame) -> None:
+def build_report(
+    quality: pd.DataFrame,
+    metrics: pd.DataFrame,
+    optimized: pd.DataFrame,
+    regime_profile: pd.DataFrame,
+    leaderboard: pd.DataFrame,
+    backtest: pd.DataFrame,
+    risk_contribution: pd.DataFrame,
+    stress_tests: pd.DataFrame,
+    pca_variance: pd.DataFrame,
+) -> None:
     best_asset = metrics.iloc[0]
     max_sharpe = optimized[optimized["portfolio"] == "Max Sharpe"].iloc[0]
     strategy_perf = performance_summary(backtest["strategy"])
@@ -539,6 +675,17 @@ def build_report(quality: pd.DataFrame, metrics: pd.DataFrame, optimized: pd.Dat
         "buy_hold_sharpe": buy_hold_perf["sharpe"],
         "champion_model": str(leaderboard.loc[0, "model"]),
         "champion_auc": float(leaderboard.loc[0, "test_roc_auc"]),
+        "max_sharpe_largest_risk_contributor": str(
+            risk_contribution[risk_contribution["portfolio"] == "Max Sharpe"]
+            .sort_values("risk_contribution", ascending=False)
+            .iloc[0]["asset"]
+        ),
+        "worst_max_sharpe_stress_scenario": str(
+            stress_tests[stress_tests["portfolio"] == "Max Sharpe"]
+            .sort_values("portfolio_return")
+            .iloc[0]["scenario"]
+        ),
+        "pc1_explained_variance": float(pca_variance.loc[0, "explained_variance_ratio"]),
     }
     (OUTPUT_DIR / "executive_insights.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
 
@@ -581,6 +728,7 @@ def build_report(quality: pd.DataFrame, metrics: pd.DataFrame, optimized: pd.Dat
       <div class="kpi"><span>Champion Model</span><strong>{html.escape(str(leaderboard.loc[0, "model"]))}</strong></div>
       <div class="kpi"><span>Model ROC AUC</span><strong>{leaderboard.loc[0, "test_roc_auc"]:.3f}</strong></div>
       <div class="kpi"><span>Strategy Sharpe</span><strong>{strategy_perf["sharpe"]:.2f}</strong></div>
+      <div class="kpi"><span>PC1 Variance</span><strong>{pca_variance.loc[0, "explained_variance_ratio"]:.1%}</strong></div>
     </div>
 
     <section>
@@ -588,6 +736,9 @@ def build_report(quality: pd.DataFrame, metrics: pd.DataFrame, optimized: pd.Dat
       <ul>
         <li><strong>{html.escape(str(best_asset["ticker"]))}</strong> ranked highest by standalone Sharpe ratio during this window.</li>
         <li>The optimized max-Sharpe portfolio improved diversification by combining return, volatility, and covariance information.</li>
+        <li>Risk contribution analysis identifies whether portfolio risk is concentrated despite diversified weights.</li>
+        <li>Scenario stress testing estimates losses under broad selloffs, rate shocks, energy rallies, and AI unwind conditions.</li>
+        <li>PCA factor analysis measures how much of the asset universe is driven by one shared market factor.</li>
         <li>Regime clustering separated calm, bullish, choppy, and drawdown-like environments without hand labels.</li>
         <li>The predictive model is evaluated with time-aware splits and should be treated as a research signal, not investment advice.</li>
         <li>The backtest compares a simple probability-threshold strategy against SPY buy-and-hold on held-out dates.</li>
@@ -607,10 +758,15 @@ def build_report(quality: pd.DataFrame, metrics: pd.DataFrame, optimized: pd.Dat
         <figure><img src="correlation_heatmap.png" alt="Correlation heatmap"></figure>
         <figure><img src="efficient_frontier.png" alt="Efficient frontier"></figure>
         <figure><img src="portfolio_allocations.png" alt="Portfolio allocations"></figure>
+        <figure><img src="risk_contribution.png" alt="Portfolio risk contribution"></figure>
+        <figure><img src="stress_tests.png" alt="Stress tests"></figure>
         <figure><img src="spy_drawdown.png" alt="SPY drawdown"></figure>
         <figure><img src="rolling_volatility.png" alt="Rolling volatility"></figure>
+        <figure><img src="rolling_beta.png" alt="Rolling beta"></figure>
         <figure><img src="market_regime_timeline.png" alt="Market regime timeline"></figure>
         <figure><img src="market_anomalies.png" alt="Market anomalies"></figure>
+        <figure><img src="pca_factor_variance.png" alt="PCA factor variance"></figure>
+        <figure><img src="pca_pc1_loadings.png" alt="PCA PC1 loadings"></figure>
         <figure><img src="model_roc_curve.png" alt="Model ROC"></figure>
         <figure><img src="model_confusion_matrix.png" alt="Model confusion matrix"></figure>
         <figure><img src="model_feature_importance.png" alt="Model feature importance"></figure>
@@ -626,6 +782,21 @@ def build_report(quality: pd.DataFrame, metrics: pd.DataFrame, optimized: pd.Dat
     <section>
       <h2>Optimized Portfolios</h2>
       {table(optimized.round(4))}
+    </section>
+
+    <section>
+      <h2>Risk Contribution</h2>
+      {table(risk_contribution.round(4))}
+    </section>
+
+    <section>
+      <h2>Scenario Stress Tests</h2>
+      {table(stress_tests.round(4))}
+    </section>
+
+    <section>
+      <h2>PCA Factor Variance</h2>
+      {table(pca_variance.round(4))}
     </section>
 
     <section>
@@ -656,6 +827,10 @@ def main() -> None:
     returns.to_csv(DATA_DIR / "daily_returns.csv")
     metrics = asset_metrics(returns)
     frontier, optimized = optimize_portfolios(returns[ASSETS])
+    risk_contribution = portfolio_risk_contribution(returns[ASSETS], optimized)
+    stress_tests = stress_test_portfolios(optimized)
+    rolling_beta_diagnostics(returns)
+    _, pca_variance = pca_factor_analysis(returns[ASSETS])
     regimes, regime_profile = build_market_regimes(returns)
     anomalies = detect_anomalies(returns, prices)
     model_data = make_prediction_dataset(returns, regimes)
@@ -663,7 +838,7 @@ def main() -> None:
     leaderboard, champion, predictions = train_predictive_models(model_data)
     backtest = backtest_strategy(returns, predictions)
     plot_outputs(prices, returns, metrics, frontier, optimized, regimes, anomalies, backtest)
-    build_report(quality, metrics, optimized, regime_profile, leaderboard, backtest)
+    build_report(quality, metrics, optimized, regime_profile, leaderboard, backtest, risk_contribution, stress_tests, pca_variance)
     print(f"Raw market data: {DATA_DIR / 'market_prices_raw.csv'}")
     print(f"Finance report: {OUTPUT_DIR / 'finance_report.html'}")
     print(f"Executive insights: {OUTPUT_DIR / 'executive_insights.json'}")

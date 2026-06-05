@@ -7,5 +7,8 @@
   "strategy_sharpe": 0.258206277456446,
   "buy_hold_sharpe": 0.8736141667445638,
   "champion_model": "Random Forest",
-  "champion_auc": 0.5488863287250384
+  "champion_auc": 0.5488863287250384,
+  "max_sharpe_largest_risk_contributor": "NVDA",
+  "worst_max_sharpe_stress_scenario": "Broad Market Shock",
+  "pc1_explained_variance": 0.4259365537108125
 }
